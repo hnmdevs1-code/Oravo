@@ -28,11 +28,9 @@ export function SignupForm() {
 
   const handleSubmit = async (data: any) => {
     mutate(data, {
-      onSuccess: async ({ token, user }) => {
-        setClientAuthToken(token);
-        setUser(user);
-
-        router.push('/dashboard');
+      onSuccess: async (result) => {
+        // Redirect to setup page with email parameter
+        router.push(`/setup?email=${encodeURIComponent(data.email)}`);
       },
     });
   };
@@ -44,6 +42,36 @@ export function SignupForm() {
       </Icon>
       <div className={styles.title}>Sign up for Oravo</div>
       <Form className={styles.form} onSubmit={handleSubmit} error={getMessage(error)}>
+        <FormRow label="Name">
+          <FormInput
+            data-test="input-name"
+            name="name"
+            rules={{ 
+              required: formatMessage(labels.required),
+              minLength: {
+                value: 2,
+                message: 'Name must be at least 2 characters'
+              }
+            }}
+          >
+            <TextField autoComplete="name" />
+          </FormInput>
+        </FormRow>
+        <FormRow label="Email Address">
+          <FormInput
+            data-test="input-email"
+            name="email"
+            rules={{ 
+              required: formatMessage(labels.required),
+              pattern: {
+                value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                message: 'Please enter a valid email address'
+              }
+            }}
+          >
+            <TextField type="email" autoComplete="email" />
+          </FormInput>
+        </FormRow>
         <FormRow label={formatMessage(labels.username)}>
           <FormInput
             data-test="input-username"
