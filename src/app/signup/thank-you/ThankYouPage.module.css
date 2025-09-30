@@ -1,0 +1,77 @@
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+  background: var(--base50);
+}
+
+.content {
+  background: var(--base100);
+  border-radius: 8px;
+  padding: 40px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  max-width: 500px;
+  width: 100%;
+}
+
+.icon {
+  margin-bottom: 24px;
+  color: var(--primary500);
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--base900);
+  margin-bottom: 24px;
+  line-height: 1.3;
+}
+
+.message {
+  margin-bottom: 32px;
+}
+
+.message p {
+  color: var(--base700);
+  font-size: 16px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.message p:last-child {
+  margin-bottom: 0;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+
+.loginLink {
+  color: var(--base600);
+  font-size: 14px;
+}
+
+.loginLink a {
+  color: var(--primary500);
+  text-decoration: none;
+}
+
+.loginLink a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+  .content {
+    padding: 24px;
+  }
+  
+  .title {
+    font-size: 20px;
+  }
+}

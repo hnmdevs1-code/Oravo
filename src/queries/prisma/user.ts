@@ -25,8 +25,11 @@ async function findUser(
     select: {
       id: true,
       username: true,
+      email: true,
       password: includePassword,
       role: true,
+      emailVerified: true,
+      emailVerificationToken: includePassword,
       createdAt: true,
     },
   });
@@ -45,6 +48,10 @@ export async function getUser(userId: string, options: GetUserOptions = {}) {
 
 export async function getUserByUsername(username: string, options: GetUserOptions = {}) {
   return findUser({ where: { username } }, options);
+}
+
+export async function getUserByEmail(email: string, options: GetUserOptions = {}) {
+  return findUser({ where: { email } }, options);
 }
 
 export async function getUsers(
@@ -76,19 +83,33 @@ export async function getUsers(
 export async function createUser(data: {
   id: string;
   username: string;
+  email: string;
   password: string;
   role: Role;
+  displayName?: string;
+  emailVerificationToken?: string;
+  emailVerificationCode?: string;
+  emailVerificationExpiry?: Date;
+  dataRegion?: string;
+  userRole?: string;
+  websiteType?: string;
+  primaryGoal?: string;
+  onboardingCompleted?: boolean;
 }): Promise<{
   id: string;
   username: string;
+  email: string;
   role: string;
+  emailVerified: boolean;
 }> {
   return prisma.client.user.create({
     data,
     select: {
       id: true,
       username: true,
+      email: true,
       role: true,
+      emailVerified: true,
     },
   });
 }
@@ -102,7 +123,9 @@ export async function updateUser(userId: string, data: Prisma.UserUpdateInput): 
     select: {
       id: true,
       username: true,
+      email: true,
       role: true,
+      emailVerified: true,
       createdAt: true,
     },
   });
