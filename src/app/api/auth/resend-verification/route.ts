@@ -1,41 +1,36 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
+import { z } from 'zod';
+import { parseRequest } from '@/lib/request';
+import { json, badRequest, serverError } from '@/lib/response';
+import { getUserByEmail, updateUser } from '@/queries';
 import { sendVerificationEmail } from '@/lib/email';
 
 function generateVerificationCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
+  const schema = z.object({
+    email: z.string().email(),
+  });
+
+  const { body, error } = await parseRequest(request, schema, { skipAuth: true });
+
+  if (error) {
+    return error();
+  }
+
+  const { email } = body;
+
   try {
-    const { email } = await request.json();
-
-    if (!email) {
-      return NextResponse.json(
-        { message: 'Email is required' },
-        { status: 400 }
-      );
-    }
-
-    const db = getDatabase();
-
     // Find user by email
-    const user = await db.user.findUnique({
-      where: { email: email.toLowerCase() },
-    });
+    const user = await getUserByEmail(email.toLowerCase());
 
     if (!user) {
-      return NextResponse.json(
-        { message: 'User not found' },
-        { status: 404 }
-      );
+      return badRequest('User not found');
     }
 
     if (user.emailVerified) {
-      return NextResponse.json(
-        { message: 'Email is already verified' },
-        { status: 400 }
-      );
+      return badRequest('Email is already verified');
     }
 
     // Generate new verification code
@@ -43,34 +38,20 @@ export async function POST(request: NextRequest) {
     const expiryTime = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
     // Update user with new verification code
-    await db.user.update({
-      where: { id: user.id },
-      data: {
-        emailVerificationCode: verificationCode,
-        emailVerificationExpiry: expiryTime,
-      },
+    await updateUser(user.id, {
+      emailVerificationCode: verificationCode,
+      emailVerificationExpiry: expiryTime,
     });
 
-    // Send verification email with code
-    try {
-      await sendVerificationEmail(user.email, verificationCode, user.displayName || user.username);
-    } catch (emailError) {
-      console.error('Failed to send verification email:', emailError);
-      return NextResponse.json(
-        { message: 'Failed to send verification email' },
-        { status: 500 }
-      );
-    }
+    // Send verification email
+    await sendVerificationEmail(user.email, verificationCode, user.username);
 
-    return NextResponse.json({
+    return json({
       message: 'Verification email sent successfully',
       success: true,
     });
-  } catch (error) {
-    console.error('Resend verification error:', error);
-    return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
-    );
+  } catch (err) {
+    console.error('Resend verification error:', err);
+    return serverError('Internal server error');
   }
 }

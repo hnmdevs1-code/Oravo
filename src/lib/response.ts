@@ -27,3 +27,7 @@ export function notFound(error: any = 'Not found') {
 export function serverError(error: any = 'Server error') {
   return Response.json({ error: serializeError(error) }, { status: 500 });
 }
+
+export function methodNotAllowed(error: any = 'Method not allowed') {
+  return Response.json({ error: serializeError(error) }, { status: 405 });
+}

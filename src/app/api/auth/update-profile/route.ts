@@ -1,51 +1,47 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
+import { z } from 'zod';
+import { parseRequest } from '@/lib/request';
+import { json, badRequest, serverError } from '@/lib/response';
+import { getUserByEmail, updateUser } from '@/queries';
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
+  const schema = z.object({
+    email: z.string().email(),
+    dataRegion: z.string().optional(),
+    userRole: z.string().optional(),
+    websiteType: z.string().optional(),
+    primaryGoal: z.string().optional(),
+  });
+
+  const { body, error } = await parseRequest(request, schema, { skipAuth: true });
+
+  if (error) {
+    return error();
+  }
+
+  const { email, dataRegion, userRole, websiteType, primaryGoal } = body;
+
   try {
-    const { email, dataRegion, userRole, websiteType, primaryGoal } = await request.json();
-
-    if (!email) {
-      return NextResponse.json(
-        { message: 'Email is required' },
-        { status: 400 }
-      );
-    }
-
-    const db = getDatabase();
-
     // Find user by email
-    const user = await db.user.findUnique({
-      where: { email: email.toLowerCase() },
-    });
+    const user = await getUserByEmail(email.toLowerCase());
 
     if (!user) {
-      return NextResponse.json(
-        { message: 'User not found' },
-        { status: 404 }
-      );
+      return badRequest('User not found');
     }
 
     // Update user profile
-    await db.user.update({
-      where: { id: user.id },
-      data: {
-        dataRegion,
-        userRole,
-        websiteType,
-        primaryGoal,
-      },
+    await updateUser(user.id, {
+      dataRegion,
+      userRole,
+      websiteType,
+      primaryGoal,
     });
 
-    return NextResponse.json({
+    return json({
       message: 'Profile updated successfully',
       success: true,
     });
-  } catch (error) {
-    console.error('Profile update error:', error);
-    return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
-    );
+  } catch (err) {
+    console.error('Profile update error:', err);
+    return serverError('Internal server error');
   }
 }

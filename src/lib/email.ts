@@ -1,6 +1,13 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resend: Resend | null = null;
+
+function getResendClient() {
+  if (!resend && process.env.RESEND_API_KEY) {
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resend;
+}
 
 export interface EmailOptions {
   to: string;
@@ -10,13 +17,15 @@ export interface EmailOptions {
 }
 
 export async function sendEmail({ to, subject, html, from }: EmailOptions) {
-  if (!process.env.RESEND_API_KEY) {
+  const client = getResendClient();
+  
+  if (!client) {
     console.warn('RESEND_API_KEY not configured, email not sent');
     return { success: false, error: 'Email service not configured' };
   }
 
   try {
-    const result = await resend.emails.send({
+    const result = await client.emails.send({
       from: from || process.env.FROM_EMAIL || 'Oravo Analytics <noreply@analytics.imoogleai.xyz>',
       to,
       subject,

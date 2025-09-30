@@ -1,77 +1,64 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
+import { z } from 'zod';
+import { parseRequest } from '@/lib/request';
+import { json, badRequest, serverError } from '@/lib/response';
+import { getUserByEmail, updateUser } from '@/queries';
 import { createSecureToken } from '@/lib/jwt';
 import { secret } from '@/lib/crypto';
 import { saveAuth } from '@/lib/auth';
 import redis from '@/lib/redis';
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
+  const schema = z.object({
+    email: z.string().email(),
+  });
+
+  const { body, error } = await parseRequest(request, schema, { skipAuth: true });
+
+  if (error) {
+    return error();
+  }
+
+  const { email } = body;
+
   try {
-    const { email } = await request.json();
-
-    if (!email) {
-      return NextResponse.json(
-        { message: 'Email is required' },
-        { status: 400 }
-      );
-    }
-
-    const db = getDatabase();
-
     // Find user by email
-    const user = await db.user.findUnique({
-      where: { email: email.toLowerCase() },
-    });
+    const user = await getUserByEmail(email.toLowerCase());
 
     if (!user) {
-      return NextResponse.json(
-        { message: 'User not found' },
-        { status: 404 }
-      );
+      return badRequest('User not found');
     }
 
     if (!user.emailVerified) {
-      return NextResponse.json(
-        { message: 'Email not verified' },
-        { status: 400 }
-      );
+      return badRequest('Email not verified');
     }
 
     // Mark onboarding as completed
-    await db.user.update({
-      where: { id: user.id },
-      data: {
-        onboardingCompleted: true,
-      },
+    await updateUser(user.id, {
+      onboardingCompleted: true,
     });
 
-    // Generate auth token
-    let token: string;
+    // Create authentication token
+    const token = createSecureToken({ userId: user.id }, secret());
+    const authKey = `auth:${token}`;
 
-    if (redis.enabled) {
-      token = await saveAuth({ userId: user.id, role: user.role });
-    } else {
-      token = createSecureToken({ userId: user.id, role: user.role }, secret());
-    }
+    // Save authentication in Redis
+    await saveAuth(token, {
+      userId: user.id,
+      username: user.username,
+      role: user.role,
+    });
 
-    return NextResponse.json({
-      message: 'Onboarding completed successfully',
-      success: true,
+    return json({
       token,
       user: {
         id: user.id,
         username: user.username,
         email: user.email,
         role: user.role,
-        emailVerified: user.emailVerified,
-        onboardingCompleted: true,
       },
     });
-  } catch (error) {
-    console.error('Complete onboarding error:', error);
-    return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
-    );
+  } catch (err) {
+    console.error('Complete onboarding error:', err);
+    return serverError('Internal server error');
   }
 }
